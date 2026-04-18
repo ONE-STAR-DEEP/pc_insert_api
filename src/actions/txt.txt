@@ -1,0 +1,23 @@
+discrepancy_items.id,
+            discrepancy_items.Qty,
+            Item.Pack AS 'PACK',
+            Item.Compname AS 'COMPANY',
+            Item.name AS 'PARTICULARS',
+            discrepancy_items.HSNCode AS 'HSN CODE',
+            discrepancy_items.Batch AS 'Batch No.',
+            discrepancy_items.expiry AS 'Exp.',
+            discrepancy_items.Mrp AS 'MRP.',
+            discrepancy_items.Ftrate AS 'Rate',
+            discrepancy_items.Dis AS 'DIS%',
+            discrepancy_items.old_Qty AS 'old_Qty',
+            CASE
+            WHEN discrepancy_items.CGST > 0 THEN discrepancy_items.CGST
+            WHEN discrepancy_items.SGST > 0 THEN discrepancy_items.SGST
+            WHEN discrepancy_items.IGST > 0 THEN discrepancy_items.IGST
+            ELSE 0
+            END AS 'Tax'
+            FROM discrepancy_items
+            INNER JOIN Item ON Item.code = discrepancy_items.Itemc
+            WHERE discrepancy_items.Vtype = 'S1'
+            AND discrepancy_items.Vno = ?
+            ORDER BY Item.Compname ASC

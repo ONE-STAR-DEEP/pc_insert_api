@@ -1,0 +1,24 @@
+{
+  "name": "pc_insert_api",
+  "version": "1.0.0",
+  "description": "APIs to send data from local machine to VPS DB",
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.0",
+    "express": "^5.2.1",
+    "morgan": "^1.10.1",
+    "mssql": "^12.2.1",
+    "mysql2": "^3.20.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/mssql": "^9.1.11"
+  }
+}
