@@ -101,7 +101,7 @@ app.get("/discrepancyInvoice/Vno/:Vno", async (req, res) => {
   } catch (error) {
     console.error("Error: ", error);
     res.json({
-      success: flse,
+      success: false,
       message: "Failed to fetch invoice details"
     });
   }
@@ -123,7 +123,7 @@ app.get("/resolvedInvoice/GSTVno/:GSTVno", async (req, res) => {
   } catch (error) {
     console.error("Error: ", error);
     res.json({
-      success: flse,
+      success: false,
       message: "Failed to fetch invoice details"
     });
   }

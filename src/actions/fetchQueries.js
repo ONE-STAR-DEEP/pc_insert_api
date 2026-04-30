@@ -20,7 +20,7 @@ export async function getData(Vno) {
 
     let conditions = `WHERE Salepurchase1.Vtyp ='S1'`;
 
-    conditions += ` AND Salepurchase1.Vdt >= DATEADD(day, -7, GETDATE())`;
+    conditions += ` AND Salepurchase1.Vdt >= DATEADD(day, -10, GETDATE())`;
 
     if (lastVno !== undefined) {
       conditions += ` AND Salepurchase1.Vno > ${lastVno}`;
