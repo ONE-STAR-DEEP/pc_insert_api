@@ -31,9 +31,26 @@ async function runJob() {
   }
 }
 
-async function processInvoices(Vno) {
-  const invoices = await getData(Vno);
+async function processInvoices(Vno, Vtyp) {
+  
+  let invoices;
 
+  if(Vtyp){
+
+    invoices = await getData(Vtyp, Vno);
+
+  } else {   
+    const invoicesS1 = await getData("S1", Vno);
+    const invoicesS2 = await getData("S2", Vno);
+    const invoicesS3 = await getData("S3", Vno);
+    
+    invoices = [
+      ...invoicesS1,
+      ...invoicesS2,
+      ...invoicesS3,
+  ];
+}
+  
   if (!invoices.length) {
     console.log("No new invoices");
     return;
@@ -49,8 +66,9 @@ async function processInvoices(Vno) {
         try {
           const VNo = invoice["VNo"];
           const Vdt = invoice["Dated"];
+          const Vtyp = invoice["Vtyp"]
 
-          const billItems = await getInvoiceItems(VNo, Vdt);
+          const billItems = await getInvoiceItems(VNo, Vtyp, Vdt);
 
           return {
             ...invoice,
@@ -62,7 +80,6 @@ async function processInvoices(Vno) {
         }
       })
     );
-
 
     const filtered = results.filter(Boolean);
 
@@ -90,9 +107,11 @@ app.get("/discrepancyInvoice/Vno/:Vno", async (req, res) => {
 
   try {
     const { Vno } = req.params;
-    console.log("Fetching invoice for VNo:", Vno);
-    const invoice = await fetchInvoiceByVNo(Vno);
-    const items = await fetchInvoiceItems(Vno);
+
+    const [Vtyp, VNo] = Vno.split("-") 
+
+    const invoice = await fetchInvoiceByVNo(VNo, Vtyp);
+    const items = await fetchInvoiceItems(VNo, Vtyp);
     res.json({
       success: true,
       invoice: invoice.data,
@@ -112,7 +131,7 @@ app.get("/resolvedInvoice/GSTVno/:GSTVno", async (req, res) => {
   try {
     const { GSTVno } = req.params;
     const invoice = await getInvoiceByGSTVno(GSTVno);
-    const items = await getInvoiceItemsByVdt(invoice[0].VNo, invoice[0].Dated);
+    const items = await getInvoiceItemsByVdt(invoice[0].VNo, invoice[0].Vtyp, invoice[0].Dated);
 
     await insertResolvedInvoice(invoice[0], items);
 
@@ -133,15 +152,17 @@ app.get("/invoice/complete/:Vno", async (req, res) => {
   try {
     const { Vno } = req.params;
 
+    const [Vtyp, newVno] = Vno.split('-');
+
     console.log("Fetching complete invoice for Vno:", Vno);
-    const invoices = await getData(Vno);
+    const invoices = await getData(Vtyp, newVno);
 
     console.log(`Fetched ${invoices.length} invoices for Vno: ${Vno}`);
 
     const finalData = await Promise.all(
       invoices.map(async (invoice) => {
 
-        const billItems = await getInvoiceItems(invoice.VNo, invoice["Dated"]);
+        const billItems = await getInvoiceItems(invoice.VNo, invoice.Vtyp, invoice["Dated"]);
 
         return {
           ...invoice,
@@ -159,16 +180,23 @@ app.get("/invoice/complete/:Vno", async (req, res) => {
 
 app.get("/invoices/new", async (req, res) => {
   try {
-    const { Vno } = req.params;
 
-    const invoices = await getData();
+    const invoicesS1 = await getData("S1");
+    const invoicesS2 = await getData("S2");
+    const invoicesS3 = await getData("S3");
+
+    const invoices = [
+      ...invoicesS1,
+      ...invoicesS2,
+      ...invoicesS3,
+    ];
 
     console.log(`Fetched ${invoices.length} invoices`);
 
     const finalData = await Promise.all(
       invoices.map(async (invoice) => {
 
-        const billItems = await getInvoiceItems(invoice.VNo, invoice["Dated"]);
+        const billItems = await getInvoiceItems(invoice.VNo, invoice.Vtyp, invoice["Dated"]);
 
         return {
           ...invoice,
@@ -184,12 +212,14 @@ app.get("/invoices/new", async (req, res) => {
   }
 });
 
-app.get("/invoice/insert/:GSTVno", async (req, res) => {
+app.get("/invoice/insert/:Vno", async (req, res) => {
 
-  const { GSTVno } = req.params;
+  const { Vno } = req.params;
+
+  const [Vtyp, newVno] = Vno.split('-');
 
   try {
-    await processInvoices(GSTVno);
+    await processInvoices(newVno, Vtyp);
     res.json({ message: "Data inserted successfully" });
 
   } catch (err) {

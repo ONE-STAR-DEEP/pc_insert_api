@@ -119,8 +119,8 @@ export const insertData = async (invoices) => {
 
                 await conn.query(
                     `INSERT INTO Salepurchase2 
-                    (invoice_id, Vno, Vtype, Vdt, Itemc, Qty, HSNCode, Batch, expiry, Mrp, Ftrate, Dis, CGST, SGST, IGST, old_Qty)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    (invoice_id, Vno, Vtype, Vdt, Itemc, Qty, HSNCode, Batch, expiry, Mrp, Ftrate, Dis, CGST, SGST, IGST)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                     [
                         invoiceId,
                         invoice.VNo,
@@ -136,8 +136,7 @@ export const insertData = async (invoices) => {
                         item["DIS%"],
                         CGST,
                         SGST,
-                        IGST,
-                        item.Qty,
+                        IGST
                     ]
                 );
             }
@@ -235,8 +234,8 @@ export const insertResolvedInvoice = async (invoice, items) => {
 
             await conn.query(
                 `INSERT INTO Salepurchase2 
-                    (invoice_id, Vno, Vtype, Vdt, Itemc, Qty, HSNCode, Batch, expiry, Mrp, Ftrate, Dis, CGST, SGST, IGST, old_Qty)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    (invoice_id, Vno, Vtype, Vdt, Itemc, Qty, HSNCode, Batch, expiry, Mrp, Ftrate, Dis, CGST, SGST, IGST)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     invoiceId,
                     invoice.VNo,
@@ -252,8 +251,7 @@ export const insertResolvedInvoice = async (invoice, items) => {
                     item["DIS%"],
                     CGST,
                     SGST,
-                    IGST,
-                    item.Qty,
+                    IGST
                 ]
             );
         }
@@ -261,7 +259,7 @@ export const insertResolvedInvoice = async (invoice, items) => {
         console.log(`Invoice ${invoice["Bill No"]} resolved and inserted successfully`);
 
         await conn.query(`
-            UPDATE discrepancy_table set status = 10, discrepancy = 0 where GSTVno = '${invoice["Bill No"]}'; 
+            UPDATE discrepancy_table set status = 10, discrepancy = 2 where GSTVno = '${invoice["Bill No"]}'; 
         `);
 
         await conn.commit();

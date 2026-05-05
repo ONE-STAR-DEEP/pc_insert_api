@@ -2,9 +2,9 @@ import { config } from "../lib/mssqlPool.js";
 import sql from "mssql";
 import { pool } from "../lib/mysqlPool.js";
 
-export async function getData(Vno) {
+export async function getData(Vtyp, Vno) {
   const conn = await pool.getConnection();
-
+  
   try {
     await sql.connect(config);
 
@@ -13,17 +13,17 @@ export async function getData(Vno) {
       lastVno = Vno;
     } else {
       let [lastInserted] = await conn.query(
-        `SELECT Vno FROM Salepurchase1 ORDER BY Vno DESC LIMIT 1;`
+        `SELECT Vno FROM Salepurchase1 WHERE Salepurchase1.Vtyp ='${Vtyp}' ORDER BY Vno DESC LIMIT 1;`
       );
       lastVno = lastInserted?.[0]?.Vno;
     }
 
-    let conditions = `WHERE Salepurchase1.Vtyp ='S1'`;
+    let conditions = `WHERE Salepurchase1.Vtyp ='${Vtyp}'`;
 
     conditions += ` AND Salepurchase1.Vdt >= DATEADD(day, -10, GETDATE())`;
 
     if (lastVno !== undefined) {
-      conditions += ` AND Salepurchase1.Vno > ${lastVno}`;
+      conditions += ` AND Salepurchase1.Vno >= ${lastVno}-10`;
     }
 
     const result = await sql.query(`
@@ -84,7 +84,7 @@ export async function getBillByBillNo(VNo) {
           Salepurchase1.Amt01 + Salepurchase1.Taxamt + Salepurchase1.Rndamt as 'Inv Amt'
           FROM Salepurchase1
           INNER JOIN Acm ON Acm.code = Salepurchase1.Acno
-          WHERE Salepurchase1.Vtyp ='S1'
+          WHERE (Salepurchase1.Vtyp ='S1' Salepurchase1.Vtyp ='S2' ORSalepurchase1.Vtyp ='S3')
           AND Salepurchase1.Vno = '${VNo}'
     `);
 
@@ -94,7 +94,7 @@ export async function getBillByBillNo(VNo) {
   }
 }
 
-export async function getInvoiceItems(VNo, Vdt) {
+export async function getInvoiceItems(VNo, Vtyp, Vdt) {
   try {
     await sql.connect(config);
 
@@ -119,7 +119,7 @@ export async function getInvoiceItems(VNo, Vdt) {
              END AS Tax
       FROM Salepurchase2
       INNER JOIN Item ON Item.code = SalePurchase2.Itemc
-      WHERE SalePurchase2.Vtype='S1'
+      WHERE SalePurchase2.Vtype='${Vtyp}'
         AND SalePurchase2.Vno= ${VNo}
         AND Salepurchase2.Vdt >= '${sqlDate}'
       ORDER BY Item.Compname ASC
@@ -212,7 +212,7 @@ export const fetchDiscrepancyInvoices = async (
   }
 };
 
-export const fetchInvoiceByVNo = async (VNo) => {
+export const fetchInvoiceByVNo = async (VNo, Vtyp) => {
 
   const conn = await pool.getConnection();
 
@@ -245,7 +245,7 @@ export const fetchInvoiceByVNo = async (VNo) => {
                 discrepancy_table.recipt
                 FROM discrepancy_table
                 INNER JOIN Acm ON Acm.code = discrepancy_table.Acno
-                WHERE discrepancy_table.Vtyp = 'S1'
+                WHERE discrepancy_table.Vtyp = '${Vtyp}'
                 AND discrepancy_table.Vno = ?
                 LIMIT 1
                 `,
@@ -269,7 +269,8 @@ export const fetchInvoiceByVNo = async (VNo) => {
 };
 
 export const fetchInvoiceItems = async (
-  VNo
+  VNo,
+  Vtyp
 ) => {
 
   const conn = await pool.getConnection();
@@ -289,6 +290,8 @@ export const fetchInvoiceItems = async (
           discrepancy_items.Ftrate AS 'Rate',
           discrepancy_items.Dis AS 'DIS%',
           discrepancy_items.old_Qty AS 'old_Qty',
+          discrepancy_items.old_batch_no AS 'old_batch_no',
+          discrepancy_items.old_expiry AS 'old_expiry',
           CASE
           WHEN discrepancy_items.CGST > 0 THEN discrepancy_items.CGST
           WHEN discrepancy_items.SGST > 0 THEN discrepancy_items.SGST
@@ -297,7 +300,7 @@ export const fetchInvoiceItems = async (
           END AS 'Tax'
           FROM discrepancy_items
           INNER JOIN Item ON Item.code = discrepancy_items.Itemc
-          WHERE discrepancy_items.Vtype = 'S1'
+          WHERE discrepancy_items.Vtype = "${Vtyp}"
           AND discrepancy_items.Vno = ?
           ORDER BY Item.Compname ASC
         `,
@@ -365,7 +368,7 @@ export async function getInvoiceByGSTVno(GSTVno) {
   }
 }
 
-export async function getInvoiceItemsByVdt(VNo, Vdt) {
+export async function getInvoiceItemsByVdt(VNo, Vtyp, Vdt) {
   try {
     await sql.connect(config);
 
@@ -388,7 +391,7 @@ export async function getInvoiceItemsByVdt(VNo, Vdt) {
              END AS Tax
       FROM Salepurchase2
       INNER JOIN Item ON Item.code = SalePurchase2.Itemc
-      WHERE SalePurchase2.Vtype='S1'
+      WHERE SalePurchase2.Vtype='${Vtyp}'
         AND SalePurchase2.Vno= ${VNo}
         AND Salepurchase2.Vdt >= CONVERT(date, '${Vdt}', 103)
       ORDER BY Item.Compname ASC
