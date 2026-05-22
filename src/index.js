@@ -2,8 +2,10 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import morgan from "morgan";
-import { fetchDiscrepancyInvoices, fetchInvoiceByVNo, fetchInvoiceItems, getData, getInvoiceByGSTVno, getInvoiceItems, getInvoiceItemsByVdt } from "./actions/fetchQueries.js";
+import { fetchDiscrepancyInvoices, fetchInvoiceByVNo, fetchInvoiceItems, getData, getEinvoice, getInvoiceByGSTVno, getInvoiceItems, getInvoiceItemsByVdt } from "./actions/fetchQueries.js";
 import { insertData, insertResolvedInvoice } from "./actions/insertQueries.js";
+import { pool } from "./lib/mysqlPool.js";
+import jwt from "jsonwebtoken";
 
 dotenv.config();
 
@@ -32,25 +34,25 @@ async function runJob() {
 }
 
 async function processInvoices(Vno, Vtyp) {
-  
+
   let invoices;
 
-  if(Vtyp){
+  if (Vtyp) {
 
     invoices = await getData(Vtyp, Vno);
 
-  } else {   
+  } else {
     const invoicesS1 = await getData("S1", Vno);
     const invoicesS2 = await getData("S2", Vno);
     const invoicesS3 = await getData("S3", Vno);
-    
+
     invoices = [
       ...invoicesS1,
       ...invoicesS2,
       ...invoicesS3,
-  ];
-}
-  
+    ];
+  }
+
   if (!invoices.length) {
     console.log("No new invoices");
     return;
@@ -69,10 +71,12 @@ async function processInvoices(Vno, Vtyp) {
           const Vtyp = invoice["Vtyp"]
 
           const billItems = await getInvoiceItems(VNo, Vtyp, Vdt);
+          const einvoice = await getEinvoice(VNo, Vtyp);
 
           return {
             ...invoice,
             items: billItems,
+            einvoice: einvoice[0],
           };
         } catch (err) {
           console.error("Failed invoice:", invoice["Bill No"], err);
@@ -108,7 +112,7 @@ app.get("/discrepancyInvoice/Vno/:Vno", async (req, res) => {
   try {
     const { Vno } = req.params;
 
-    const [Vtyp, VNo] = Vno.split("-") 
+    const [Vtyp, VNo] = Vno.split("-")
 
     const invoice = await fetchInvoiceByVNo(VNo, Vtyp);
     const items = await fetchInvoiceItems(VNo, Vtyp);
@@ -135,13 +139,13 @@ app.get("/resolvedInvoice/GSTVno/:GSTVno", async (req, res) => {
 
     await insertResolvedInvoice(invoice[0], items);
 
-    res.json({
+    return res.json({
       success: true,
       message: `Invoice ${GSTVno} resolved and inserted successfully`
     });
   } catch (error) {
     console.error("Error: ", error);
-    res.json({
+    return res.json({
       success: false,
       message: "Failed to fetch invoice details"
     });
@@ -178,53 +182,44 @@ app.get("/invoice/complete/:Vno", async (req, res) => {
   }
 });
 
-app.get("/invoices/new", async (req, res) => {
+app.post("/verify-login", async (req, res) => {
   try {
+    const { passkey } = req.body;
 
-    const invoicesS1 = await getData("S1");
-    const invoicesS2 = await getData("S2");
-    const invoicesS3 = await getData("S3");
+    if (!passkey) return res.status(404).json({ message: "Provide Passkey" });
 
-    const invoices = [
-      ...invoicesS1,
-      ...invoicesS2,
-      ...invoicesS3,
-    ];
+    const [rows] = await pool.query(
+      `
+      SELECT *
+      FROM client_data
+      LIMIT 1;
+      `);
 
-    console.log(`Fetched ${invoices.length} invoices`);
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "No Data Found" });
+    }
 
-    const finalData = await Promise.all(
-      invoices.map(async (invoice) => {
+    const Password = rows[0].password;
 
-        const billItems = await getInvoiceItems(invoice.VNo, invoice.Vtyp, invoice["Dated"]);
+    if (String(Password) === String(passkey)) {
+      const token = jwt.sign(
+        {
+          auth: true,
+        },
+        "pharmacube",
+        {
+          expiresIn: "1d",
+          issuer: "pharmacube",
+        }
+      );
+      return res.status(200).json({ success: true, message: "Passkey verified", pharmacubetoken: token });
+    }
 
-        return {
-          ...invoice,
-          items: billItems,
-        };
-      })
-    );
+    return res.status(500).json({ success: true, message: "Failed to verified" });
 
-    res.json(finalData);
   } catch (err) {
     console.error("Error:", err);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
-app.get("/invoice/insert/:Vno", async (req, res) => {
-
-  const { Vno } = req.params;
-
-  const [Vtyp, newVno] = Vno.split('-');
-
-  try {
-    await processInvoices(newVno, Vtyp);
-    res.json({ message: "Data inserted successfully" });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Something went wrong" });
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 });
 

@@ -20,7 +20,7 @@ export async function getData(Vtyp, Vno) {
 
     let conditions = `WHERE Salepurchase1.Vtyp ='${Vtyp}'`;
 
-    conditions += ` AND Salepurchase1.Vdt >= DATEADD(day, -10, GETDATE())`;
+    conditions += ` AND Salepurchase1.Vdt >= DATEADD(day, -150, GETDATE())`;
 
     if (lastVno !== undefined) {
       conditions += ` AND Salepurchase1.Vno >= ${lastVno}-10`;
@@ -123,6 +123,25 @@ export async function getInvoiceItems(VNo, Vtyp, Vdt) {
         AND SalePurchase2.Vno= ${VNo}
         AND Salepurchase2.Vdt >= '${sqlDate}'
       ORDER BY Item.Compname ASC
+    `);
+
+    return result.recordset;
+
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
+}
+
+export async function getEinvoice(VNo, Vtyp) {
+  try {
+    await sql.connect(config);
+    
+    const result = await sql.query(`
+      SELECT *
+      FROM EInvoice
+      WHERE Vtype='${Vtyp}'
+        AND Vno= ${VNo}
     `);
 
     return result.recordset;

@@ -1,16 +1,16 @@
 import { pool } from "../lib/mysqlPool.js";
 
 function formatDate(date) {
-  if (date instanceof Date) {
-    return date.toISOString().slice(0, 10); // YYYY-MM-DD
-  }
+    if (date instanceof Date) {
+        return date.toISOString().slice(0, 10); // YYYY-MM-DD
+    }
 
-  if (typeof date === "string") {
-    const [dd, mm, yyyy] = date.split("/");
-    return `${yyyy}-${mm}-${dd}`;
-  }
+    if (typeof date === "string") {
+        const [dd, mm, yyyy] = date.split("/");
+        return `${yyyy}-${mm}-${dd}`;
+    }
 
-  throw new Error("Invalid date format");
+    throw new Error("Invalid date format");
 }
 
 export const insertData = async (invoices) => {
@@ -79,7 +79,7 @@ export const insertData = async (invoices) => {
 
             const invoiceId = invoiceResult.insertId;
 
-            if(!invoiceId) {
+            if (!invoiceId) {
                 console.error(`Dublicate entry found for invoice VNo: ${invoice.VNo}, Vtyp: ${invoice.Vtyp}. Skipping insertion.`);
                 continue;
             }
@@ -140,6 +140,62 @@ export const insertData = async (invoices) => {
                     ]
                 );
             }
+
+            const [existingEInvoice] = await conn.query(
+                `SELECT * FROM EInvoice WHERE Vno=? AND Vtype=?`,
+                [invoice.VNo, invoice.Vtyp]
+            );
+
+            if (existingEInvoice.length > 0) continue;
+
+            const EInvoice = invoice.einvoice;
+
+            if (!EInvoice) {
+                continue;
+            } else {
+                const [einvoiceResult] = await conn.query(
+                    `INSERT IGNORE INTO EInvoice 
+                (Vtype, Vno, Vdt, GSTVno, Acno, GSTNo, Name, Amt, Amt01, Taxamt, CgstAmt, SgstAmt, IgstAmt, CessAmt, Status, UploadMsg, AckNo, AckDt, Irn, SignedInvoice, SignedQRCode, EwbNo, EwbDt, EwbValidTill, QrImage, NOP, VehicleNo, TransName, TransID, MachineName, TransDocNo, Uid, EWayReason, EWayStatus)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [
+                        EInvoice.Vtype,
+                        EInvoice.Vno,
+                        EInvoice.Vdt,
+                        EInvoice.GSTVno || null,
+                        Acno,
+                        EInvoice.GSTNo || null,
+                        EInvoice.Name,
+                        EInvoice.Amt,
+                        EInvoice.Amt01,
+                        EInvoice.Taxamt,
+                        EInvoice.CgstAmt,
+                        EInvoice.SgstAmt,
+                        EInvoice.IgstAmt,
+                        EInvoice.CessAmt,
+                        EInvoice.Status,
+                        EInvoice.UploadMsg,
+                        EInvoice.AckNo,
+                        EInvoice.AckDt,
+                        EInvoice.Irn,
+                        EInvoice.SignedInvoice,
+                        EInvoice.SignedQRCode,
+                        EInvoice.EwbNo || null,
+                        EInvoice.EwbDt || null,
+                        EInvoice.EwbValidTill || null,
+                        EInvoice.QrImage || null,
+                        EInvoice.NOP || null,
+                        EInvoice.VehicleNo || null,
+                        EInvoice.TransName || null,
+                        EInvoice.TransID || null,
+                        EInvoice.MachineName || null,
+                        EInvoice.TransDocNo || null,
+                        EInvoice.Uid || null,
+                        EInvoice.EWayReason || null,
+                        EInvoice.EWayStatus || null
+                    ]
+                );
+            }
+
         }
         await conn.commit();
 
